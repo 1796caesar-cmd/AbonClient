@@ -19,8 +19,8 @@ final class LoginVault {
     LoginVault(Context context) {
         prefs = context.getSharedPreferences("login_vault", Context.MODE_PRIVATE);
     }
-    boolean rememberEmail() { return prefs.getBoolean("remember_email", true); }
-    boolean rememberPassword() { return prefs.getBoolean("remember_password", false); }
+    boolean rememberEmail() { return true; }
+    boolean rememberPassword() { return true; }
     String email() { return rememberEmail() ? prefs.getString("email", "") : ""; }
     void setRememberEmail(boolean enabled) {
         prefs.edit().putBoolean("remember_email", enabled).apply();
@@ -66,7 +66,7 @@ final class LoginVault {
     }
     void clearPassword() { prefs.edit().remove("password_iv").remove("password_cipher").apply(); }
     void clear() {
-        prefs.edit().clear().putBoolean("remember_email", false).putBoolean("remember_password", false).apply();
+        prefs.edit().clear().apply();
         try { KeyStore ks = KeyStore.getInstance("AndroidKeyStore"); ks.load(null); ks.deleteEntry(ALIAS); } catch (Exception ignored) {}
     }
 }
