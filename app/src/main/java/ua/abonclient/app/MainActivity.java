@@ -1,56 +1,29 @@
 package ua.abonclient.app;
-
-import android.app.Activity;
-import android.os.Bundle;
-import android.content.Intent;
-import android.content.ActivityNotFoundException;
-import android.content.SharedPreferences;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.net.Uri;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.*;
-import androidx.browser.customtabs.CustomTabsIntent;
-import androidx.browser.customtabs.CustomTabColorSchemeParams;
+import android.app.*; import android.os.*; import android.content.*; import android.graphics.Color; import android.graphics.Typeface; import android.graphics.drawable.GradientDrawable; import android.net.Uri; import android.view.*; import android.webkit.*; import android.widget.*; import org.json.*; import java.net.*; import java.io.*;
 
 public class MainActivity extends Activity {
-    private static final String URL = "https://www.abon.com.ua/account/list";
-    private static final int GREEN = Color.rgb(40,97,61), BG = Color.rgb(241,246,242), DARK = Color.rgb(28,46,35);
-    private SharedPreferences prefs;
-    private LinearLayout root;
-    private int dp(float n) { return Math.round(n * getResources().getDisplayMetrics().density); }
-    @Override public void onCreate(Bundle state) {
-        super.onCreate(state);
-        prefs = getSharedPreferences("settings", MODE_PRIVATE);
-        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(BG);
-        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(24),dp(24),dp(24),dp(24));
-        scroll.addView(root); setContentView(scroll);
-        scroll.setOnApplyWindowInsetsListener((v,insets) -> {
-            v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom()); return insets.consumeSystemWindowInsets();
-        });
-        label("МОЯ КОМУНАЛКА", 13, GREEN, true);
-        label("Особистий кабінет", 32, DARK, true);
-        label("Комунальні послуги • Abon.com.ua", 16, DARK, false);
-        space(28);
-        LinearLayout panel = new LinearLayout(this); panel.setOrientation(1); panel.setPadding(dp(20),dp(20),dp(20),dp(20)); panel.setBackground(round(Color.WHITE,20)); root.addView(panel);
-        TextView heading = new TextView(this); heading.setText("Мої особові рахунки"); heading.setTextColor(DARK); heading.setTextSize(22); heading.setTypeface(null,Typeface.BOLD); panel.addView(heading);
-        TextView note = new TextView(this); note.setText("Переглядай нарахування, передавай показники води та перевіряй історію платежів у кабінеті."); note.setTextColor(DARK); note.setTextSize(16); note.setPadding(0,dp(12),0,dp(16)); panel.addView(note);
-        Button open = new Button(this); open.setText("Відкрити кабінет"); open.setAllCaps(false); open.setTextColor(Color.WHITE); open.setTextSize(17); open.setBackground(round(GREEN,14)); panel.addView(open,new LinearLayout.LayoutParams(-1,dp(54))); open.setOnClickListener(v -> openCabinet());
-        space(20);
-        Switch auto = new Switch(this); auto.setText("Відкривати кабінет при запуску"); auto.setTextSize(16); auto.setTextColor(DARK); auto.setChecked(prefs.getBoolean("auto",false)); root.addView(auto,new LinearLayout.LayoutParams(-1,dp(58))); auto.setOnCheckedChangeListener((b,checked)->prefs.edit().putBoolean("auto",checked).apply());
-        label("Авторизація через Google виконується на сайті у браузері. Додаток не отримує ваш пароль або файли cookies.", 14, DARK, false);
-        space(24); label("Версія 1.0 • Тест авторизації", 13, GREEN, false);
-        if(state == null && prefs.getBoolean("auto",false)) root.post(this::openCabinet);
-    }
-    private void openCabinet() {
-        Uri uri = Uri.parse(URL);
-        CustomTabsIntent tab = new CustomTabsIntent.Builder().setShowTitle(true).setDefaultColorSchemeParams(new CustomTabColorSchemeParams.Builder().setToolbarColor(GREEN).build()).build();
-        try { tab.launchUrl(this,uri); }
-        catch(ActivityNotFoundException e) { try { startActivity(new Intent(Intent.ACTION_VIEW,uri)); } catch(ActivityNotFoundException ex) { Toast.makeText(this,"Встановіть браузер",Toast.LENGTH_LONG).show(); } }
-    }
-    private GradientDrawable round(int color,int radius) { GradientDrawable d=new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
-    private void label(String text,int size,int color,boolean bold) { TextView t=new TextView(this); t.setText(text); t.setTextSize(size); t.setTextColor(color); if(bold)t.setTypeface(null,Typeface.BOLD); t.setPadding(0,dp(5),0,dp(5)); root.addView(t); }
-    private void space(int size) { root.addView(new View(this),new LinearLayout.LayoutParams(1,dp(size))); }
+ static final String BASE="https://www.abon.com.ua", LIST=BASE+"/account/list", REPO="https://github.com/1796caesar-cmd/AbonClient";
+ final int green=0xff28613d, dark=0xff20372c, bg=0xffeef4ef;
+ LinearLayout outer,bar,body; FrameLayout frame; WebView web; ScrollView nativeView; TextView title; boolean dashboard=false, settings=false; String accountUrl=""; JSONObject data; int generation=0;
+ int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+ boolean trusted(String s){try{Uri u=Uri.parse(s);return "https".equals(u.getScheme())&&"www.abon.com.ua".equalsIgnoreCase(u.getHost())&&(u.getPort()==-1||u.getPort()==443);}catch(Exception e){return false;}}
+ @Override public void onCreate(Bundle b){super.onCreate(b);outer=new LinearLayout(this);outer.setOrientation(1);outer.setBackgroundColor(bg);setContentView(outer);outer.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i.consumeSystemWindowInsets();});bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setBackgroundColor(green);outer.addView(bar,new LinearLayout.LayoutParams(-1,dp(56)));Button back=new Button(this);back.setText("‹");bar.addView(back,new LinearLayout.LayoutParams(dp(48),-1));back.setOnClickListener(v->home());title=new TextView(this);title.setText("Моя комуналка");title.setTextColor(-1);title.setTextSize(20);title.setTypeface(null,Typeface.BOLD);bar.addView(title,new LinearLayout.LayoutParams(0,-2,1));Button opts=new Button(this);opts.setText("⚙");bar.addView(opts,new LinearLayout.LayoutParams(dp(52),-1));opts.setOnClickListener(v->showSettings());frame=new FrameLayout(this);outer.addView(frame,new LinearLayout.LayoutParams(-1,0,1));web=new WebView(this);frame.addView(web,new FrameLayout.LayoutParams(-1,-1));nativeView=new ScrollView(this);nativeView.setFillViewport(true);frame.addView(nativeView,new FrameLayout.LayoutParams(-1,-1));nativeView.setVisibility(View.GONE);web.getSettings().setJavaScriptEnabled(true);web.getSettings().setDomStorageEnabled(true);web.getSettings().setAllowFileAccess(false);web.getSettings().setAllowContentAccess(false);web.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);web.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest r){String u=r.getUrl().toString();if(!r.isForMainFrame())return false;if(trusted(u))return false; if("https".equals(r.getUrl().getScheme()))external(u);return true;}@Override public void onPageStarted(WebView w,String url,android.graphics.Bitmap icon){generation++;}@Override public void onPageFinished(WebView w,String url){CookieManager.getInstance().flush();if(trusted(url))inspect(url);}});web.loadUrl(LIST);if(getPreferences(0).getBoolean("autoUpdate",false))checkUpdate(false);}
+ void external(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception e){toast("Не вдалося відкрити посилання");}}
+ void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
+ void page(String url){if(!trusted(url))return;dashboard=false;settings=false;nativeView.setVisibility(View.GONE);web.setVisibility(View.VISIBLE);title.setText("Моя комуналка");web.loadUrl(url);}
+ void home(){if(data!=null){showDashboard();}else page(LIST);}
+ void inspect(String url){final int g=generation;String script="(function(){const q=(s,r=document)=>r.querySelector(s),t=(s,r=document)=>{let e=q(s,r);return e?e.textContent.trim():''},a=(s)=>{let e=q(s);return e?e.href:''}; if(!document.body.classList.contains('user-logged-in'))return JSON.stringify({kind:'login'}); if(q('.ai_account_state'))return JSON.stringify({kind:'account',company:t('.cmb_company_name'),code:t('.account_title_code'),balance:t('.ai_payment_data .ai_account_balance'),meters:Array.from(document.querySelectorAll('.ai_meters tbody tr')).map(r=>Array.from(r.cells).map(c=>c.textContent.trim())),groups:Array.from(document.querySelectorAll('.ai_mutual_settlements li')).map(r=>({name:t('.ai_mutual_settlements_agreement_type_name',r),rows:Array.from(r.querySelectorAll('tbody tr')).map(x=>Array.from(x.cells).map(c=>c.textContent.trim()))})),reading:a('a[href*=\\\"/account/meter/\\\"]'),history:a('a[href*=\\\"/account/reading/history/\\\"]'),payments:a('a[href*=\\\"/account/payment/list/\\\"]')});return JSON.stringify({kind:'other'});})()";web.evaluateJavascript(script,value->{if(g!=generation||!trusted(web.getUrl()))return;try{Object raw=new JSONTokener(value).nextValue();JSONObject o=new JSONObject((String)raw);String kind=o.optString("kind");if(kind.equals("account")){accountUrl=url;data=o;if(!settings)showDashboard();}else if(kind.equals("login")){data=null;accountUrl="";}}catch(Exception ignored){}});}
+ GradientDrawable rounded(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(16));return d;}
+ void begin(String heading){web.setVisibility(View.GONE);nativeView.setVisibility(View.VISIBLE);nativeView.removeAllViews();body=new LinearLayout(this);body.setOrientation(1);body.setPadding(dp(16),dp(16),dp(16),dp(24));nativeView.addView(body);title.setText(heading);}
+ LinearLayout card(int color){LinearLayout p=new LinearLayout(this);p.setOrientation(1);p.setPadding(dp(16),dp(14),dp(16),dp(14));p.setBackground(rounded(color));LinearLayout.LayoutParams l=new LinearLayout.LayoutParams(-1,-2);l.bottomMargin=dp(12);body.addView(p,l);return p;}
+ void text(LinearLayout p,String s,int size,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(c);if(bold)t.setTypeface(null,Typeface.BOLD);t.setPadding(0,dp(4),0,dp(4));p.addView(t);}
+ void button(LinearLayout p,String s,Runnable run){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setOnClickListener(v->run.run());p.addView(b,new LinearLayout.LayoutParams(-1,-2));}
+ void link(LinearLayout p,String label,String key){String u=data.optString(key);if(trusted(u))button(p,label,()->page(u));}
+ void showDashboard(){if(data==null){page(LIST);return;}settings=false;dashboard=true;begin("Моя комуналка");LinearLayout p=card(green);text(p,data.optString("company"),18,-1,true);text(p,"Особовий рахунок № "+data.optString("code"),14,-1,false);text(p,data.optString("balance"),30,-1,true);LinearLayout m=card(-1);text(m,"Лічильники",22,dark,true);JSONArray meters=data.optJSONArray("meters");if(meters!=null)for(int i=0;i<meters.length();i++){JSONArray r=meters.optJSONArray(i);if(r!=null){text(m,r.optString(0),16,dark,false);text(m,r.optString(1),28,green,true);}}link(m,"Подати показники","reading");link(m,"Історія показників","history");LinearLayout h=card(-1);text(h,"Взаєморозрахунки",22,dark,true);JSONArray groups=data.optJSONArray("groups");if(groups!=null)for(int j=0;j<groups.length();j++){JSONObject group=groups.optJSONObject(j);if(group==null)continue;text(h,group.optString("name"),16,dark,true);JSONArray rows=group.optJSONArray("rows");if(rows!=null)for(int i=0;i<rows.length();i++){JSONArray r=rows.optJSONArray(i);if(r!=null)text(h,r.optString(0)+"  •  Нараховано: "+r.optString(1)+" грн\nСплачено: "+r.optString(2)+"  |  Залишок: "+r.optString(3),14,dark,false);}}link(h,"Історія платежів","payments");button(body,"Оновити рахунок",()->page(accountUrl));button(body,"Мої рахунки",()->page(LIST));}
+ void showSettings(){settings=true;dashboard=false;begin("Налаштування");LinearLayout p=card(-1);text(p,"Версія "+versionName(),20,dark,true);button(p,"Перевірити оновлення",()->checkUpdate(true));Switch s=new Switch(this);s.setText("Перевіряти при запуску");s.setChecked(getPreferences(0).getBoolean("autoUpdate",false));p.addView(s);s.setOnCheckedChangeListener((v,c)->getPreferences(0).edit().putBoolean("autoUpdate",c).apply());button(p,"Вийти з кабінету",()->new AlertDialog.Builder(this).setMessage("Очистити локальну сесію?").setNegativeButton("Ні",null).setPositiveButton("Так",(d,w)->{data=null;accountUrl="";CookieManager.getInstance().removeAllCookies(x->{CookieManager.getInstance().flush();page(LIST);});}).show());button(body,"Назад",()->home());}
+ String versionName(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){return "1.1";}}
+ int versionCode(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionCode;}catch(Exception e){return 0;}}
+ void checkUpdate(boolean manual){if(manual)toast("Перевіряємо оновлення…");new Thread(()->{try{URL u=new URL("https://api.github.com/repos/1796caesar-cmd/AbonClient/releases/latest");HttpURLConnection c=(HttpURLConnection)u.openConnection();c.setConnectTimeout(10000);c.setReadTimeout(10000);c.setRequestProperty("Accept","application/vnd.github+json");c.setRequestProperty("User-Agent","AbonClient");ByteArrayOutputStream out=new ByteArrayOutputStream();try(InputStream in=c.getInputStream()){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}finally{c.disconnect();}JSONObject r=new JSONObject(out.toString("UTF-8"));String tag=r.optString("tag_name");int remote=Integer.parseInt(tag.substring(tag.lastIndexOf('-')+1));String download="";JSONArray assets=r.getJSONArray("assets");for(int i=0;i<assets.length();i++){JSONObject a=assets.getJSONObject(i);if(a.optString("name").equals("AbonClient.apk"))download=a.optString("browser_download_url");}final String link=download;runOnUiThread(()->{if(isFinishing()||isDestroyed())return;if(remote>versionCode()&&link.startsWith(REPO+"/releases/download/"))new AlertDialog.Builder(this).setTitle("Доступне оновлення").setMessage(r.optString("name",tag)).setNegativeButton("Пізніше",null).setPositiveButton("Завантажити",(d,w)->external(link)).show();else if(manual)toast("Новішої версії не знайдено");});}catch(Exception e){if(manual)runOnUiThread(()->toast("Не вдалося перевірити оновлення"));}}).start();}
+ @Override public void onBackPressed(){if(settings||dashboard){if(settings)home();else page(LIST);}else if(data!=null)showDashboard();else if(web.canGoBack())web.goBack();else super.onBackPressed();}
+ @Override protected void onPause(){super.onPause();CookieManager.getInstance().flush();}
 }

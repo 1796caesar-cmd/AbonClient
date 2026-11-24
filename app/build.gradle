@@ -6,9 +6,8 @@ android {
         applicationId 'ua.abonclient.app'
         minSdk 23
         targetSdk 35
-        versionCode 1
-        versionName '1.0'
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '2').toInteger() + 100
+        versionName '1.1'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
-dependencies { implementation 'androidx.browser:browser:1.8.0' }
