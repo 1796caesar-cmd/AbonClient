@@ -52,9 +52,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           CODE=$((GITHUB_RUN_NUMBER + 100))
-          TAG="v1.1-$CODE"
+          VERSION=$(sed -n "s/.*versionName *= *'\([^']*\)'.*/\1/p" app/build.gradle)
+          test -n "$VERSION"
+          TAG="v$VERSION-$CODE"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" AbonClient.apk --clobber
           else
-            gh release create "$TAG" AbonClient.apk --target "$GITHUB_SHA" --title "AbonClient 1.1 (збірка $CODE)" --generate-notes --latest
+            gh release create "$TAG" AbonClient.apk --target "$GITHUB_SHA" --title "AbonClient $VERSION (збірка $CODE)" --generate-notes --latest
           fi
